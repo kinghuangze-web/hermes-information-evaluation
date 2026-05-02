@@ -4,9 +4,20 @@
 
 1. Install Node.js 18 or later.
 2. Run `npm install`.
-3. Copy `.env.example` to `.env`.
+3. Run `npm run setup:local`.
 4. Keep `HERMES_AGENT_EXECUTION_MODE=local_modules` for the first run.
 5. Start the API with `npm start`.
+
+After the first successful request, you should see runtime JSON files appear inside `./data`.
+
+## First-run expectations
+
+- No WSL required
+- No Feishu credentials required
+- No browser login required
+- No external monitor required
+
+If you only want to prove the repo can run, stay in this mode first.
 
 ## Production-like setup
 

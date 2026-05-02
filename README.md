@@ -20,9 +20,16 @@ A Feishu-first multi-agent system for content intake, evaluation, and action rou
 
 ```bash
 npm install
-cp .env.example .env
+npm run setup:local
 npm start
 ```
+
+This first boot path does not require:
+
+- WSL
+- Hermes Profiles
+- Feishu credentials
+- a logged-in browser session
 
 Health check:
 
@@ -37,6 +44,12 @@ curl -X POST http://127.0.0.1:3000/api/v1/hermes/process \
   -H "Content-Type: application/json" \
   -d @examples/sample-process-payload.json
 ```
+
+Expected result:
+
+- `/api/v1/health` returns `{"status":"ok",...}`
+- `/api/v1/hermes/process` returns `success: true`
+- runtime files are created under `./data`
 
 ## Repo Layout
 
@@ -57,6 +70,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/hermes/process \
 - Start with local module mode first.
 - Add Hermes Profiles, WSL bridge, and Feishu writeback only after the local flow works.
 - Treat browser session automation as an optional production-like layer, not a hard requirement for first boot.
+- The default `.env.example` keeps browser session features off for first-time setup.
 
 See:
 
