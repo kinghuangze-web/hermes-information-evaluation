@@ -2,7 +2,7 @@
 const path = require('path');
 const { ValidationError } = require('../middleware/errorHandler');
 
-const PROJECT_ROOT = path.join(__dirname, '..', '..');
+const PROJECT_ROOT = path.join(__dirname, '..');
 const STORAGE_SETTINGS_FILE = path.join(PROJECT_ROOT, 'storage.config.json');
 const DEFAULT_DATA_DIR = 'data';
 const DATA_DIR_ENV_KEY = 'HERMES_DATA_DIR';
