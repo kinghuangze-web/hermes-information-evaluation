@@ -62,4 +62,11 @@ See:
 
 - [Deployment Guide](./docs/deployment.md)
 - [Browser Session Guide](./docs/browser-session.md)
+- [API Guide](./docs/api.md)
 - [Privacy Guide](./docs/privacy.md)
+
+## Verification
+
+```bash
+npm run verify
+```
