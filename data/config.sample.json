@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "user": {
+    "name": "Hermes User",
+    "timezone": "UTC"
+  },
+  "ui": {
+    "theme": "light",
+    "language": "en"
+  },
+  "automation": {
+    "enabled": true
+  }
+}

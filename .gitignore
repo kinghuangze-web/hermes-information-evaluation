@@ -1,0 +1,15 @@
+node_modules/
+logs/
+.env
+.env.local
+.DS_Store
+Thumbs.db
+data/*.json
+!data/.gitkeep
+!data/*.sample.json
+coverage/
+*.log
+*.tmp
+*.bak
+test-storage-*/
+tmp/
