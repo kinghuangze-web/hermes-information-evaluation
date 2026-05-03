@@ -6,6 +6,7 @@ const DEFAULT_FEISHU_BITABLE_WSL_PATH = '';
 
 const FIELD_NAMES = {
   PRIMARY_TEXT: '\u6587\u672c',
+  MULTILINE_TEXT: '\u591a\u884c\u6587\u672c',
   TIME: '\u65f6\u95f4',
   SOURCE_CHANNEL: '\u6765\u6e90\u6e20\u9053',
   PRIORITY: '\u7efc\u5408\u4f18\u5148\u7ea7',
@@ -14,6 +15,12 @@ const FIELD_NAMES = {
   SHORT_DESCRIPTION: '\u7b80\u8981\u63cf\u8ff0',
   LINK: '\u94fe\u63a5',
   TITLE: '\u6807\u9898',
+  TOPIC: '\u4e3b\u9898',
+  ONE_LINE_CONCLUSION: '\u4e00\u53e5\u8bdd\u7ed3\u8bba',
+  RECOMMENDED_ACTION: '\u5efa\u8bae\u52a8\u4f5c',
+  NEXT_STEP: '\u4e0b\u4e00\u6b65',
+  REASON: '\u539f\u56e0',
+  ORIGINAL_INPUT: '\u539f\u59cb\u8f93\u5165',
   RECORD_ID: '\u8bb0\u5f55ID',
   TASK_ID: '\u4efb\u52a1ID',
   OVERALL_SCORE: '\u7efc\u5408\u5206',
@@ -37,6 +44,21 @@ const REQUIRED_FIELD_DEFS = [
   { field_name: FIELD_NAMES.AGENT_MODE, type: 1 },
   { field_name: FIELD_NAMES.WORKER_SESSIONS, type: 1 },
   { field_name: FIELD_NAMES.REAL_PROFILES_EXECUTION, type: 7 }
+];
+
+const REQUIRED_FRONTSTAGE_FIELD_NAMES = [
+  FIELD_NAMES.MULTILINE_TEXT,
+  FIELD_NAMES.PRIMARY_TEXT,
+  FIELD_NAMES.SOURCE_CHANNEL,
+  FIELD_NAMES.PRIORITY,
+  FIELD_NAMES.PROCESSING_RESULT,
+  FIELD_NAMES.WORTH_DOING,
+  FIELD_NAMES.TOPIC,
+  FIELD_NAMES.ONE_LINE_CONCLUSION,
+  FIELD_NAMES.RECOMMENDED_ACTION,
+  FIELD_NAMES.NEXT_STEP,
+  FIELD_NAMES.REASON,
+  FIELD_NAMES.ORIGINAL_INPUT
 ];
 
 function readJsonResponse(response) {
@@ -141,9 +163,25 @@ function toTimestamp(value) {
   return timestamp;
 }
 
+function extractUrlsFromText(value = '') {
+  return String(value || '').match(/https?:\/\/[^\s"'<>]+/gi) || [];
+}
+
+function getFirstLink(record = {}) {
+  const explicitLink = Array.isArray(record.links) && record.links.length > 0
+    ? String(record.links[0] || '').trim()
+    : '';
+
+  if (explicitLink) {
+    return explicitLink;
+  }
+
+  return String(extractUrlsFromText(record.rawText)[0] || '').trim();
+}
+
 function detectSourceChannel(record = {}) {
   const sourcePlatform = String(record.sourcePlatform || '').trim().toLowerCase();
-  const firstLink = Array.isArray(record.links) && record.links.length > 0 ? String(record.links[0] || '').trim() : '';
+  const firstLink = getFirstLink(record);
 
   if (sourcePlatform === 'wechat') {
     return '\u5fae\u4fe1\u516c\u4f17\u53f7';
@@ -154,7 +192,7 @@ function detectSourceChannel(record = {}) {
   }
 
   if (sourcePlatform === 'x') {
-    return 'X/Twitter';
+    return ['X', 'X/Twitter'];
   }
 
   if (sourcePlatform === 'audit') {
@@ -171,7 +209,7 @@ function detectSourceChannel(record = {}) {
       return '\u5fae\u4fe1\u516c\u4f17\u53f7';
     }
     if (hostname === 'x.com' || hostname === 'twitter.com') {
-      return 'X/Twitter';
+      return ['X', 'X/Twitter'];
     }
     if (hostname.endsWith('xiaohongshu.com')) {
       return '\u5c0f\u7ea2\u4e66';
@@ -185,28 +223,36 @@ function detectSourceChannel(record = {}) {
 
 function mapPriorityLabel(overallScore) {
   if (Number(overallScore || 0) >= 8) {
-    return '\u9ad8';
+    return ['P1-\u4f18\u5148\u5904\u7406', '\u9ad8'];
   }
   if (Number(overallScore || 0) >= 6) {
-    return '\u4e2d';
+    return ['P2-\u503c\u5f97\u8ddf\u8fdb', '\u4e2d'];
   }
-  return '\u4f4e';
+  return ['P3-\u53ef\u5b58\u6863', '\u4f4e'];
+}
+
+function mapWorthDoingLabel(record = {}) {
+  if (!record.worthDoing) {
+    return '\u4f4e';
+  }
+
+  return Number(record.scores?.overall || 0) >= 8 ? '\u9ad8' : '\u4e2d';
 }
 
 function mapPotentialValueLabel(potentialReturnScore) {
   if (Number(potentialReturnScore || 0) >= 8) {
-    return '\u2b50\u2b50\u2b50 \u9ad8';
+    return ['\u2b50\u2b50\u2b50 \u9ad8', '\u9ad8'];
   }
   if (Number(potentialReturnScore || 0) >= 6) {
-    return '\u2b50\u2b50 \u4e2d';
+    return ['\u2b50\u2b50 \u4e2d', '\u4e2d'];
   }
   return '\u4f4e';
 }
 
 function mapProcessingResult(record = {}) {
   return String(record.recommendedAction || '').trim() === '\u4ec5\u5f52\u6863'
-    ? '\u4ec5\u5f52\u6863'
-    : '\u5f85\u5904\u7406';
+    ? ['\u5df2\u5f52\u6863', '\u4ec5\u5f52\u6863']
+    : ['\u7ee7\u7eed\u8ddf\u8fdb', '\u5f85\u5904\u7406'];
 }
 
 function formatWorkerSessions(agentExecution = {}) {
@@ -273,12 +319,33 @@ function buildActionSummary(record = {}) {
   ]);
 }
 
+function buildTopicLabel(record = {}) {
+  const keywords = Array.isArray(record.keywords) ? record.keywords.map((item) => String(item || '').trim()).filter(Boolean) : [];
+  if (keywords.length > 0) {
+    return keywords.slice(0, 3).join(' / ');
+  }
+
+  const labels = {
+    sales: '\u9500\u552e / \u7ebf\u7d22',
+    marketing: '\u8425\u9500 / \u589e\u957f',
+    product: '\u4ea7\u54c1 / \u5de5\u5177',
+    ai: 'AI Agent / \u5de5\u4f5c\u6d41',
+    content: '\u5185\u5bb9 / \u9009\u9898',
+    operations: '\u8fd0\u8425 / \u6d41\u7a0b',
+    other: '\u5176\u4ed6'
+  };
+
+  return labels[record.topic] || labels.other;
+}
+
 function buildCandidateValues(record = {}) {
   const agentExecution = record.metadata?.agentExecution || {};
-  const firstLink = Array.isArray(record.links) && record.links.length > 0 ? String(record.links[0] || '').trim() : '';
+  const firstLink = getFirstLink(record);
+  const actionText = [record.recommendedAction, record.nextStep].map((item) => String(item || '').trim()).filter(Boolean).join(' | ');
 
   return {
     [FIELD_NAMES.PRIMARY_TEXT]: record.title || buildCompactSummary(record),
+    [FIELD_NAMES.MULTILINE_TEXT]: record.title || buildCompactSummary(record),
     [FIELD_NAMES.TIME]: toTimestamp(record.createdAt),
     [FIELD_NAMES.SOURCE_CHANNEL]: detectSourceChannel(record),
     [FIELD_NAMES.PRIORITY]: mapPriorityLabel(record.scores?.overall),
@@ -287,10 +354,19 @@ function buildCandidateValues(record = {}) {
     [FIELD_NAMES.SHORT_DESCRIPTION]: buildCompactSummary(record),
     [FIELD_NAMES.LINK]: firstLink,
     [FIELD_NAMES.TITLE]: record.title,
+    [FIELD_NAMES.TOPIC]: buildTopicLabel(record),
+    [FIELD_NAMES.ONE_LINE_CONCLUSION]: record.coreConclusion,
+    [FIELD_NAMES.RECOMMENDED_ACTION]: actionText,
+    [FIELD_NAMES.NEXT_STEP]: record.nextStep,
+    [FIELD_NAMES.REASON]: Array.isArray(record.reasons) ? record.reasons.join('\n') : '',
+    [FIELD_NAMES.ORIGINAL_INPUT]: record.rawText,
     [FIELD_NAMES.RECORD_ID]: record.id,
     [FIELD_NAMES.TASK_ID]: record.taskId,
     [FIELD_NAMES.OVERALL_SCORE]: Number(record.scores?.overall || 0),
-    [FIELD_NAMES.WORTH_DOING]: Boolean(record.worthDoing),
+    [FIELD_NAMES.WORTH_DOING]: {
+      checkbox: Boolean(record.worthDoing),
+      select: mapWorthDoingLabel(record)
+    },
     [FIELD_NAMES.CONTENT_SUMMARY]: buildContentSummary(record),
     [FIELD_NAMES.EVALUATION_SUMMARY]: buildEvaluationSummary(record),
     [FIELD_NAMES.ACTION_SUMMARY]: buildActionSummary(record),
@@ -306,12 +382,19 @@ function normalizeSelectValue(field = {}, value) {
   }
 
   const options = Array.isArray(field.property?.options) ? field.property.options : [];
+  const candidates = Array.isArray(value) ? value : [value];
   if (options.length === 0) {
-    return String(value).trim() || undefined;
+    return String(candidates[0] || '').trim() || undefined;
   }
 
-  const normalized = String(value).trim();
-  return options.some((option) => option.name === normalized) ? normalized : undefined;
+  for (const candidate of candidates) {
+    const normalized = String(candidate || '').trim();
+    if (options.some((option) => option.name === normalized)) {
+      return normalized;
+    }
+  }
+
+  return undefined;
 }
 
 function normalizeFieldValue(field = {}, value) {
@@ -328,13 +411,13 @@ function normalizeFieldValue(field = {}, value) {
       return Number.isFinite(numeric) ? numeric : undefined;
     }
     case 3:
-      return normalizeSelectValue(field, value);
+      return normalizeSelectValue(field, value?.select ?? value);
     case 4:
       return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : undefined;
     case 5:
       return Number.isFinite(Number(value)) ? Number(value) : toTimestamp(value);
     case 7:
-      return Boolean(value);
+      return Boolean(value?.checkbox ?? value);
     default:
       return undefined;
   }
@@ -354,6 +437,14 @@ function mapRecordToBitableFields(record = {}, fields = []) {
   }
 
   return mapped;
+}
+
+function findMissingFrontstageFields(mappedFields = {}, fields = []) {
+  const existingFieldNames = new Set(fields.map((field) => field.field_name));
+
+  return REQUIRED_FRONTSTAGE_FIELD_NAMES
+    .filter((fieldName) => existingFieldNames.has(fieldName))
+    .filter((fieldName) => mappedFields[fieldName] === undefined || mappedFields[fieldName] === '');
 }
 
 async function listBitableFields(config, deps = {}) {
@@ -487,6 +578,18 @@ async function writeRecordToFeishuBitable(record, options = {}, deps = {}) {
   const { fields, createdFields } = await ensureBitableFields(runtimeConfig, deps);
   const mappedFields = mapRecordToBitableFields(record, fields);
   const fieldsWritten = Object.keys(mappedFields);
+  const missingFrontstageFields = findMissingFrontstageFields(mappedFields, fields);
+
+  if (missingFrontstageFields.length > 0) {
+    return {
+      status: 'failed',
+      reason: 'missing_frontstage_fields',
+      configSource: config.configSource,
+      createdFields,
+      fieldsWritten,
+      missingFrontstageFields
+    };
+  }
 
   if (fieldsWritten.length === 0) {
     return {
@@ -534,7 +637,9 @@ module.exports = {
   DEFAULT_FEISHU_BITABLE_WSL_PATH,
   FIELD_NAMES,
   REQUIRED_FIELD_DEFS,
+  REQUIRED_FRONTSTAGE_FIELD_NAMES,
   getFeishuBitableConfig,
+  findMissingFrontstageFields,
   mapRecordToBitableFields,
   writeRecordToFeishuBitable
 };

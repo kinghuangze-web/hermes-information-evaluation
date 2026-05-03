@@ -31,7 +31,7 @@ function assertEvidencePacket(taskEnvelope = {}) {
   const hasNarrativeEvidence = Boolean(evidencePacket.hasNarrativeEvidence);
 
   if (requiresExternalEvidence(taskEnvelope) && !usableLinkEvidence && !hasNarrativeEvidence) {
-    throw new ValidationError('证据获取失败：未拿到可用正文，已停止分发给 3 个 worker，也不会写入来源库或飞书表。');
+    throw new ValidationError('????????????????????? 3 ? worker??????????????');
   }
 }
 
@@ -79,12 +79,12 @@ function resolveWriterType(options = {}, runtimeEnv = {}, intakeIntent = null) {
 
 function buildDirectiveAuditRecord(recordId, taskEnvelope, intakeIntent, directiveResult) {
   const now = new Date().toISOString();
-  const summary = String(directiveResult.summary || '').trim() || '已完成工作区指令写入。';
+  const summary = String(directiveResult.summary || '').trim() || '???????????';
 
   return normalizeHermesRecord({
     id: recordId,
     taskId: taskEnvelope.taskId,
-    title: directiveResult.title || `工作区指令：${intakeIntent.action}`,
+    title: directiveResult.title || `??????${intakeIntent.action}`,
     summary,
     keywords: ['hermes', 'workspace', directiveResult.entityType || 'directive'],
     topic: 'operations',
@@ -99,7 +99,7 @@ function buildDirectiveAuditRecord(recordId, taskEnvelope, intakeIntent, directi
     },
     worthDoing: false,
     recommendedAction: HERMES_ACTIONS[4] || HERMES_ACTIONS[0],
-    nextStep: '等待人工查看并决定后续处理。',
+    nextStep: '??????????????',
     executionWindow: 'this_week',
     reasons: [`workspace_directive:${intakeIntent.action}`],
     status: 'acted',
@@ -417,8 +417,9 @@ async function processHermesInput(payload, options = {}) {
       }
     }));
 
+    const bitableSuccess = ['created', 'updated'].includes(feishuBitableResult?.status);
     runTrace = await persistRunTrace(updateRunTraceStage(runTrace, 'pipeline.writer.feishuBitable', {
-      status: feishuBitableResult?.status === 'created' ? 'success' : (writerType === 'bitable' ? 'failed' : 'unknown'),
+      status: bitableSuccess ? 'success' : (writerType === 'bitable' ? 'failed' : 'unknown'),
       reason: feishuBitableResult?.reason || '',
       metadata: feishuBitableResult || {}
     }));
@@ -433,7 +434,7 @@ async function processHermesInput(payload, options = {}) {
     }));
     runTrace = await persistRunTrace(finalizeHermesRunTrace(runTrace));
 
-    const feedback = `建议：${savedRecord.recommendedAction}；下一步：${savedRecord.nextStep}`;
+    const feedback = `???${savedRecord.recommendedAction}?????${savedRecord.nextStep}`;
 
     return {
       taskEnvelope,
